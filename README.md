@@ -27,7 +27,7 @@ Inspired by soft cloud aesthetics, this app helps you stay organized with a touc
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/yourusername/pastel-todo-mini.git
+git clone https://github.com/SaniaDebbarma/to-do-list-using-javascript-easy/tree/main
 cd pastel-todo-mini
 
 2. Open in your browser
