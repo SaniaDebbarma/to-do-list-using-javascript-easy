@@ -1,0 +1,192 @@
+<!-- file: projects/todo-mini-project/index.html -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pastel To‑Do List — Mini Project</title>
+  <style>
+    :root{
+      --bg:#dff6f0; /* mint */
+      --text:#473a35;
+      --shadow: rgba(0,0,0,0.08);
+      --pill-h:64px;
+      --gap:18px;
+    }
+    html,body{height:100%;}
+    body{
+      margin:0;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+      background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;
+    }
+    .card{
+      width:420px;max-width:94vw;background:transparent;position:relative;
+    }
+    h1{font-size:54px;color:#9fbab5;text-align:center;margin:8px 0 20px;font-weight:700;}
+
+    /* clouds (simple) */
+    .cloud{position:absolute;background:#fff;border-radius:50%;filter:blur(0.4px);opacity:0.95}
+    .c1{width:120px;height:60px;left:-20px;top:20px}
+    .c2{width:80px;height:40px;right:-10px;top:60px}
+    .c3{width:130px;height:70px;left:10px;bottom:70px}
+    .c4{width:100px;height:50px;right:10px;bottom:20px}
+
+    .controls{display:flex;gap:8px;align-items:center;justify-content:center;margin-bottom:12px}
+    .input{
+      flex:1;padding:14px 16px;border-radius:999px;border:0;box-shadow:0 6px 10px var(--shadow);font-size:16px;outline:none
+    }
+    .btn{background:#fff;border:0;padding:10px 16px;border-radius:999px;cursor:pointer;box-shadow:0 6px 10px var(--shadow)}
+
+    .list{display:flex;flex-direction:column;gap:var(--gap)}
+
+    .task{
+      height:var(--pill-h);display:flex;align-items:center;padding:0 22px;border-radius:999px;box-shadow:0 12px 20px var(--shadow);
+      user-select:none;cursor:grab;position:relative;overflow:hidden;
+    }
+    .task.dragging{opacity:0.6;transform:scale(0.995)}
+    .task .num{font-weight:700;color:var(--text);width:56px}
+    .task .text{flex:1;font-size:18px;color:var(--text);}
+    .task.done .text{opacity:0.5;text-decoration:line-through}
+    .task .actions{display:flex;gap:8px;align-items:center}
+    .icon{width:36px;height:36px;border-radius:50%;display:inline-grid;place-items:center;background:rgba(255,255,255,0.45);cursor:pointer}
+
+    /* pastel palette backgrounds */
+    .c-a{background:#f9d5cc}
+    .c-b{background:#f3d699}
+    .c-c{background:#e9dfe0}
+    .c-d{background:#cfe1e1}
+    .c-e{background:#efcfdb}
+    .c-f{background:#d4b89f}
+    .c-g{background:#d9d3d2}
+    .c-h{background:#e5dbf2}
+
+    /* small controls */
+    .small{font-size:13px;color:#6b6b6b}
+    .footer{display:flex;justify-content:space-between;align-items:center;margin-top:12px}
+
+    /* responsive */
+    @media (max-width:480px){h1{font-size:44px}}
+  </style>
+</head>
+<body>
+  <div class="card" aria-live="polite">
+    <div class="cloud c1"></div>
+    <div class="cloud c2"></div>
+    <div class="cloud c3"></div>
+    <div class="cloud c4"></div>
+
+    <h1>List</h1>
+
+    <div class="controls" role="region" aria-label="Add task">
+      <input id="taskInput" class="input" placeholder="Add a new task and press Enter" aria-label="New task">
+      <button id="addBtn" class="btn" title="Add">＋</button>
+    </div>
+
+    <div id="list" class="list" aria-label="To-do list"></div>
+
+    <div class="footer">
+      <div class="small" id="count">0 items</div>
+      <div style="display:flex;gap:8px">
+        <button id="clearDone" class="btn small">Clear done</button>
+        <button id="reset" class="btn small">Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Why: storage helps keep list between visits
+    const STORAGE_KEY = 'todo-mini-v1'
+    const palette = ['c-a','c-b','c-c','c-d','c-e','c-f','c-g','c-h']
+
+    const listEl = document.getElementById('list')
+    const input = document.getElementById('taskInput')
+    const addBtn = document.getElementById('addBtn')
+    const countEl = document.getElementById('count')
+    const clearDoneBtn = document.getElementById('clearDone')
+    const resetBtn = document.getElementById('reset')
+
+    let tasks = load()
+    let dragSrcId = null
+
+    function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)) }
+    function load(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)) || defaultSample() }catch(e){return defaultSample()} }
+    function defaultSample(){ return [
+      {id:uid(),text:'',done:false},
+      {id:uid(),text:'',done:false},
+      {id:uid(),text:'',done:false},
+      {id:uid(),text:'',done:false},
+      {id:uid(),text:'',done:false},
+      {id:uid(),text:'',done:false},
+      {id:uid(),text:'',done:false},
+      {id:uid(),text:'',done:false}
+    ]}
+
+    function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8) }
+
+    // create DOM for tasks
+    function render(){
+      listEl.innerHTML = ''
+      tasks.forEach((t,i)=>{
+        const item = document.createElement('div')
+        item.className = `task ${palette[i % palette.length]} ${t.done? 'done':''}`
+        item.setAttribute('draggable','true')
+        item.dataset.id = t.id
+
+        item.innerHTML = `
+          <div class="num">${String(i+1).padStart(2,'0')}.</div>
+          <div class="text" contenteditable="true" aria-label="Task ${i+1}">${escapeHtml(t.text)}</div>
+          <div class="actions">
+            <div class="icon" data-action="toggle" title="Toggle done">✓</div>
+            <div class="icon" data-action="delete" title="Delete">✕</div>
+          </div>
+        `
+
+        // events
+        item.querySelector('[data-action="toggle"]').addEventListener('click', ()=>{ toggleDone(t.id) })
+        item.querySelector('[data-action="delete"]').addEventListener('click', ()=>{ deleteTask(t.id) })
+
+        const textEl = item.querySelector('.text')
+        textEl.addEventListener('blur', ()=>{ updateText(t.id, textEl.innerText.trim()) })
+        textEl.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); textEl.blur(); } })
+
+        // drag & drop
+        item.addEventListener('dragstart', (e)=>{ dragSrcId = t.id; item.classList.add('dragging') })
+        item.addEventListener('dragend', (e)=>{ dragSrcId = null; item.classList.remove('dragging') })
+        item.addEventListener('dragover', (e)=>{ e.preventDefault() })
+        item.addEventListener('drop', (e)=>{ e.preventDefault(); if(dragSrcId && dragSrcId !== t.id) reorder(dragSrcId, t.id) })
+
+        listEl.appendChild(item)
+      })
+      countEl.textContent = `${tasks.length} item${tasks.length!==1?'s':''}`
+      save()
+    }
+
+    function addTask(text){ text = (text||'').trim(); if(!text) return; tasks.unshift({id:uid(),text,done:false}); render(); }
+    function deleteTask(id){ tasks = tasks.filter(t=>t.id!==id); render(); }
+    function updateText(id, newText){ const t = tasks.find(x=>x.id===id); if(!t) return; t.text=newText; render(); }
+    function toggleDone(id){ const t = tasks.find(x=>x.id===id); if(!t) return; t.done = !t.done; render(); }
+    function reorder(srcId, destId){
+      const srcIdx = tasks.findIndex(t=>t.id===srcId)
+      const destIdx = tasks.findIndex(t=>t.id===destId)
+      if(srcIdx<0||destIdx<0) return
+      const [item] = tasks.splice(srcIdx,1)
+      tasks.splice(destIdx,0,item)
+      render()
+    }
+
+    // utilities
+    function escapeHtml(s){ return String(s||'').replace(/[&<>]/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;' }[c])) }
+
+    // wire controls
+    addBtn.addEventListener('click', ()=>{ addTask(input.value); input.value=''; input.focus() })
+    input.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ addTask(input.value); input.value=''; } })
+    clearDoneBtn.addEventListener('click', ()=>{ tasks = tasks.filter(t=>!t.done); render() })
+    resetBtn.addEventListener('click', ()=>{ if(confirm('Reset list to 8 empty slots?')){ tasks = defaultSample(); render() } })
+
+    // initial render
+    render()
+
+    // expose to window for quick debugging (optional)
+    window._todo = {get:()=>tasks,save,render}
+  </script>
+</body>
+</html>
